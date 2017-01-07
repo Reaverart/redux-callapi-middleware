@@ -1,0 +1,19 @@
+{
+  "name": "redux-simpleapi-middleware",
+  "version": "0.1.0",
+  "description": "Redux API middleware",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "redux",
+    "api",
+    "middleware"
+  ],
+  "author": {
+    "name": "Artur Charaev",
+    "email": "reaverart@gmail.com"
+  },
+  "license": "ISC"
+}
