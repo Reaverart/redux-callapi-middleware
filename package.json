@@ -15,8 +15,8 @@
     "name": "Artur Charaev",
     "email": "reaverart@gmail.com"
   },
-  "license": "ISC",
   "devDependencies": {
+  "license": "MIT",
     "isomorphic-fetch": "^2.2.1"
   }
 }
