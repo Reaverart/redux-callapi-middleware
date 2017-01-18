@@ -1,5 +1,5 @@
 {
-  "name": "redux-simpleapi-middleware",
+  "name": "redux-callapi-middleware",
   "version": "0.1.0",
   "description": "Redux API middleware",
   "main": "lib/index.js",
@@ -13,7 +13,9 @@
   "keywords": [
     "redux",
     "api",
-    "middleware"
+    "middleware",
+    "fetch",
+    "callapi"
   ],
   "author": {
     "name": "Artur Charaev",
