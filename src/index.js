@@ -28,12 +28,16 @@ export const actionWith = (actionType, args, payload) => {
   if (typeof actionType === 'function') {
     nextAction = actionType(...args, payload);
   } else {
-    if (typeof actionType === 'string') {
+    // convert strings or symbols to FSA object
+    if (typeof actionType === 'string' || typeof actionType === 'symbol') {
       nextAction = { type: actionType };
     } else {
       nextAction = actionType;
     }
-    nextAction.payload = payload || nextAction.payload;
+
+    if (payload) {
+      nextAction.payload = payload;
+    }
   }
   if (payload instanceof Error) {
     nextAction.error = true;
@@ -42,31 +46,32 @@ export const actionWith = (actionType, args, payload) => {
   return nextAction;
 };
 
-const createMiddleware = ({ status = checkStatus, parse = parseResponse }) => (
+export const createMiddleware = ({ status = checkStatus, parse = parseResponse }) => (
   ({ getState }) => next => (action) => {
     if (!action[CALL_API]) {
       return next(action);
     }
 
-    let { endpoint, options } = action[CALL_API];
-    const { types } = action[CALL_API];
+    const apiAction = action[CALL_API];
 
     // make request endpoint
-    if (typeof endpoint === 'function') {
-      endpoint = endpoint(action, getState());
+    if (typeof apiAction.endpoint === 'function') {
+      apiAction.endpoint = apiAction.endpoint(action, getState());
     }
 
     // make request opts
-    if (typeof options === 'function') {
-      options = options(action, getState());
+    if (typeof apiAction.options === 'function') {
+      apiAction.options = apiAction.options(action, getState());
     }
+
+    const { endpoint, options, types } = apiAction;
 
     // action types
     const [requestType, successType, failureType] = types;
 
     // dispatch request type
     next(actionWith(
-      requestType, [action, getState()]
+      requestType, [apiAction, getState()]
     ));
 
     return fetch(endpoint, options)
@@ -74,13 +79,13 @@ const createMiddleware = ({ status = checkStatus, parse = parseResponse }) => (
       .then(parse)
       .then(
         response => next(actionWith(
-          successType, [action, getState()], response
+          successType, [apiAction, getState()], response
         )),
         error => next(actionWith(
-          failureType, [action, getState()], error
+          failureType, [apiAction, getState()], error
         ))
       );
   }
 );
 
-export default createMiddleware;
+export default createMiddleware({});
