@@ -23,6 +23,16 @@ export const parseResponse = (response) => {
   return response;
 };
 
+const successInterceptor = (...args) => {
+  const promise = Promise.resolve(...args);
+  return promise.then(checkStatus).then(parseResponse);
+};
+const failureInterceptor = error => Promise.reject(error);
+
+export const callApi = (endpoint, options, success, failure) => (
+  fetch(endpoint, options).then(success, failure)
+);
+
 export const actionWith = (actionType, args, payload) => {
   let nextAction;
   if (typeof actionType === 'function') {
@@ -46,7 +56,17 @@ export const actionWith = (actionType, args, payload) => {
   return nextAction;
 };
 
-export const createMiddleware = ({ status = checkStatus, parse = parseResponse }) => (
+const normalize = (item, apiAction, getState) => {
+  if (typeof item === 'function') {
+    return item(apiAction, getState());
+  }
+  return item;
+};
+
+export const createMiddleware = ({
+  responseSuccess = successInterceptor,
+  responseFailure = failureInterceptor,
+}) => (
   ({ getState }) => next => (action) => {
     if (!action[CALL_API]) {
       return next(action);
@@ -54,32 +74,40 @@ export const createMiddleware = ({ status = checkStatus, parse = parseResponse }
 
     const apiAction = action[CALL_API];
 
-    // make request endpoint
-    if (typeof apiAction.endpoint === 'function') {
-      apiAction.endpoint = apiAction.endpoint(action, getState());
+    let { batch, endpoint, options } = apiAction;
+    const batchMode = Array.isArray(batch);
+    if (batchMode) {
+      // prepare requests params
+      batch = batch.map(request => ({
+        endpoint: normalize(request.endpoint, apiAction, getState),
+        options: normalize(request.options, apiAction, getState),
+      }));
+    } else {
+      // prepare request endpoint
+      endpoint = normalize(endpoint, apiAction, getState);
+      // prepare request options
+      options = normalize(options, apiAction, getState);
     }
-
-    // make request opts
-    if (typeof apiAction.options === 'function') {
-      apiAction.options = apiAction.options(action, getState());
-    }
-
-    const { endpoint, options, types } = apiAction;
 
     // action types
-    const [requestType, successType, failureType] = types;
+    const [requestType, successType, failureType] = apiAction.types;
 
     // dispatch request type
     next(actionWith(
       requestType, [apiAction, getState()]
     ));
 
-    return fetch(endpoint, options)
-      .then(status)
-      .then(parse)
+    const promises = (batchMode ?
+      batch.map(request =>
+        callApi(request.endpoint, request.options, responseSuccess, responseFailure)
+      ) :
+      [callApi(endpoint, options, responseSuccess, responseFailure)]
+    );
+
+    return Promise.all(promises)
       .then(
-        response => next(actionWith(
-          successType, [apiAction, getState()], response
+        responses => next(actionWith(
+          successType, [apiAction, getState()], batchMode ? responses : responses[0]
         )),
         error => next(actionWith(
           failureType, [apiAction, getState()], error
