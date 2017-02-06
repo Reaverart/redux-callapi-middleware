@@ -1,6 +1,6 @@
 redux-callapi-middleware
 ====================
-Redux CallAPI Middleware to make API calls in generic and declarative way.
+Redux CallAPI Middleware to make API calls in generic and declarative way. Allows to batch multiple API calls and intercept responses.
 
 ## Contents
 
@@ -86,15 +86,29 @@ Otherwise it will dispatch *failure* FSA:
 
 ### Create middleware
 
-Middleware exposes `createMiddleware` function which accepts object with `status` and `parse` functions.
-So you can customize status and parse functions on your own.
+Middleware exposes `createMiddleware` function which accepts object with `responseSuccess` and `responseFailure` functions.
+So you can customize response interceptors on your own.
 
 ```js
-import { createMiddleware } from 'redux-callapi-middleware';
+import { createMiddleware, checkStatus, parseResponse } from 'redux-callapi-middleware';
 
-const status = (response) => response;
-const parse = (response) => response;
-const apiMiddleware = createMiddleware({ status, response });
+const responseSuccess = (...args) => {
+  // dont wish to parse response by default
+  return Promise.resolve(...args).then(checkStatus);
+};
+
+// it should return Promise reject to trigger errorType action.
+const responseFailure = (error) => {
+  // wish to have parsed response in error
+  return Promise.reject(error.response)
+    .then(parseResponse)
+    .then(response => {
+      error.parsed = response;
+      return error;
+    });
+};
+
+const apiMiddleware = createMiddleware({ responseSuccess, responseFailure });
 ```
 
 #### `checkStatus`
@@ -103,20 +117,44 @@ Small util to check if `response.ok` (status in the range 200-299) used as defau
 
 #### `parseResponse`
 
-Small util to check to parse typical response like json or text and used as default parse function. If unknow type it returns raw response (for instance images).
+Small util to check to parse typical response like json or text and used as default parse function. If unknown type it returns raw response (for instance images).
 
 ### Action creator
 
-Action creator should return an object with `[CALL_API]` property with `endpoint`, `options` and `types` fields. See [example](#example).
+Action creator should return an object with `[CALL_API]` property with `batch`, `endpoint`, `options` and `types` fields. See [example](#example).
+
+#### `[CALL_API].batch`
+
+An API endpoints to batch call. `Array` of `Objects` contains `endpoint` and `options` fields in same format as `[CALL_API].endpoint` and `[CALL_API].options`.
+```js
+batch: [
+  { endpoint1, options1 },
+  { endpoint2, options2 },
+],
+```
 
 #### `[CALL_API].endpoint`
 
-An API endpoint to call. String or function which receives state and returns string.
+An API endpoint to call. Used if batch is not populated. String or function which receives state and returns string.
+```js
+endpoint: 'someurl',
+```
+```js
+// calculate url from state
+endpoint: (apiAction, state) => 'someurl',
+```
 
 #### `[CALL_API].options`
 
-Request options object. Object or function which receives state and returns object.
+Request options object. Used if batch is not populated. Object or function which receives state and returns object.
 It uses [`isomorphic-fetch`](https://github.com/matthew-andrews/isomorphic-fetch) under the hood, so any valid options for [fetch](https://fetch.spec.whatwg.org), like `body`, `credentials`, `headers` and etc.
+```js
+options: { 'method': 'PUT'},
+```
+```js
+// calculate options from state
+options: (apiAction, state) => { 'method': 'PUT'},
+```
 
 #### `[CALL_API].types`
 
@@ -260,12 +298,17 @@ Not supported, but might work with [redux-promise](https://github.com/acdlite/re
   2. It not dispatches "programmatic" errors, like errors on endpoint generation.
   3. It gives more control with functions as actions types
   4. Not supports promises, but take look to [redux-promise](https://github.com/acdlite/redux-promise).
+  5. Allows to batch API calls
 
 6. Want to have base URL?
 
 Write a wrapper around your callApi action creator.
 
-7. Want to check custom headers or custom parse response?
+7. Want to check custom headers or have custom parse response?
+
+See [create middleware](#create-middleware)
+
+8. Wish to have custom error handling?
 
 See [create middleware](#create-middleware)
 
