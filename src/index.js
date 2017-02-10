@@ -73,35 +73,29 @@ export const createMiddleware = ({
     }
 
     const apiAction = action[CALL_API];
-
-    let { batch, endpoint, options } = apiAction;
+    let { batch } = apiAction;
+    const { endpoint, options, types } = apiAction;
     const batchMode = Array.isArray(batch);
-    if (batchMode) {
-      // prepare requests params
-      batch = batch.map(request => ({
-        endpoint: normalize(request.endpoint, apiAction, getState),
-        options: normalize(request.options, apiAction, getState),
-      }));
-    } else {
-      // prepare request endpoint
-      endpoint = normalize(endpoint, apiAction, getState);
-      // prepare request options
-      options = normalize(options, apiAction, getState);
+
+    if (!batchMode) {
+      batch = [{ endpoint, options }];
     }
+    // prepare requests params
+    batch = batch.map(request => ({
+      endpoint: normalize(request.endpoint, apiAction, getState),
+      options: normalize(request.options, apiAction, getState),
+    }));
 
     // action types
-    const [requestType, successType, failureType] = apiAction.types;
+    const [requestType, successType, failureType] = types;
 
     // dispatch request type
     next(actionWith(
       requestType, [apiAction, getState()]
     ));
 
-    const promises = (batchMode ?
-      batch.map(request =>
-        callApi(request.endpoint, request.options, responseSuccess, responseFailure)
-      ) :
-      [callApi(endpoint, options, responseSuccess, responseFailure)]
+    const promises = batch.map(request =>
+      callApi(request.endpoint, request.options, responseSuccess, responseFailure)
     );
 
     return Promise.all(promises)
