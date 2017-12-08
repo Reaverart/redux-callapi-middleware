@@ -67,7 +67,7 @@ export const createMiddleware = ({
   responseSuccess = successInterceptor,
   responseFailure = failureInterceptor,
 }) => (
-  ({ getState }) => next => (action) => {
+  ({ dispatch, getState }) => next => (action) => {
     if (!action[CALL_API]) {
       return next(action);
     }
@@ -90,7 +90,7 @@ export const createMiddleware = ({
     const [requestType, successType, failureType] = types;
 
     // dispatch request type
-    next(actionWith(
+    dispatch(actionWith(
       requestType, [apiAction, getState()]
     ));
 
@@ -100,10 +100,10 @@ export const createMiddleware = ({
 
     return Promise.all(promises)
       .then(
-        responses => next(actionWith(
+        responses => dispatch(actionWith(
           successType, [apiAction, getState()], batchMode ? responses : responses[0]
         )),
-        error => next(actionWith(
+        error => dispatch(actionWith(
           failureType, [apiAction, getState()], error
         ))
       );
