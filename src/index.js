@@ -1,37 +1,4 @@
-import fetch from 'isomorphic-fetch';
-
 export const CALL_API = Symbol('Call API');
-
-export const checkStatus = (response) => {
-  if (!response.ok) {
-    const error = new Error(response.statusText || response.status);
-    error.response = response;
-    throw error;
-  }
-  return response;
-};
-
-export const parseResponse = (response) => {
-  const contentType = response.headers.get('Content-Type') || '';
-
-  if (contentType.indexOf('json') !== -1) {
-    return response.json();
-  } else if (contentType.indexOf('text') !== -1) {
-    return response.text();
-  }
-  // return raw response if unexpected content type
-  return response;
-};
-
-const successInterceptor = (...args) => {
-  const promise = Promise.resolve(...args);
-  return promise.then(checkStatus).then(parseResponse);
-};
-const failureInterceptor = error => Promise.reject(error);
-
-export const callApi = (endpoint, options, success, failure) => (
-  fetch(endpoint, options).then(success, failure)
-);
 
 export const actionWith = (actionType, args, payload) => {
   let nextAction;
@@ -64,8 +31,7 @@ const normalize = (item, apiAction, getState) => {
 };
 
 export const createMiddleware = ({
-  responseSuccess = successInterceptor,
-  responseFailure = failureInterceptor,
+  callApi,
 }) => (
   ({ dispatch, getState }) => next => (action) => {
     if (!action[CALL_API]) {
@@ -95,7 +61,7 @@ export const createMiddleware = ({
     ));
 
     const promises = batch.map(request =>
-      callApi(request.endpoint, request.options, responseSuccess, responseFailure)
+      callApi(request.endpoint, request.options)
     );
 
     return Promise.all(promises)
@@ -110,4 +76,4 @@ export const createMiddleware = ({
   }
 );
 
-export default createMiddleware({});
+export default createMiddleware;

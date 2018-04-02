@@ -29,9 +29,6 @@
   },
   "homepage": "https://github.com/reaverart/redux-callapi-middleware",
   "license": "MIT",
-  "dependencies": {
-    "isomorphic-fetch": "^2.2.1"
-  },
   "devDependencies": {
     "babel-cli": "^6.18.0",
     "babel-plugin-transform-object-rest-spread": "^6.20.2",
