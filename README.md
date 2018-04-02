@@ -86,38 +86,33 @@ Otherwise it will dispatch *failure* FSA:
 
 ### Create middleware
 
-Middleware exposes `createMiddleware` function which accepts object with `responseSuccess` and `responseFailure` functions.
-So you can customize response interceptors on your own.
+Middleware exposes `createMiddleware` function which accepts object with `callApi` function.
+So you can pass any fetch implementation you wish with any response interceptors.
 
 ```js
-import { createMiddleware, checkStatus, parseResponse } from 'redux-callapi-middleware';
+import { createMiddleware } from 'redux-callapi-middleware';
+import fetch from 'isomorphic-fetch';
 
-const responseSuccess = (...args) => {
-  // dont wish to parse response by default
-  return Promise.resolve(...args).then(checkStatus);
-};
-
-// it should return Promise reject to trigger errorType action.
-const responseFailure = (error) => {
-  // wish to have parsed response in error
-  return Promise.reject(error.response)
-    .then(parseResponse)
-    .then(response => {
-      error.parsed = response;
-      return error;
-    });
-};
-
-const apiMiddleware = createMiddleware({ responseSuccess, responseFailure });
+const apiMiddleware = createMiddleware({ callApi: fetch });
 ```
 
-#### `checkStatus`
+Or with interceptors
 
-Small util to check if `response.ok` (status in the range 200-299) used as default status check. If not it throws error with response attached to it in `error.response`. Failure handler will receive this error.
+```js
+import { createMiddleware } from 'redux-callapi-middleware';
+import fetch from 'isomorphic-fetch';
 
-#### `parseResponse`
+const onSuccess = (response) => {
+  if (!response.ok) {
+    throw new Error('Error');
+  }
+  return response;
+}
 
-Small util to check to parse typical response like json or text and used as default parse function. If unknown type it returns raw response (for instance images).
+const callApi = (url, options) => fetch(url, options).then(onSuccess);
+
+const apiMiddleware = createMiddleware({ callApi });
+```
 
 ### Action creator
 
