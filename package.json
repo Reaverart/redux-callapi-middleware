@@ -1,6 +1,6 @@
 {
   "name": "redux-callapi-middleware",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Redux API middleware",
   "main": "lib/index.js",
   "scripts": {
