@@ -8,7 +8,7 @@
     "clean": "rimraf lib",
     "lint": "eslint src",
     "prepublish": "npm run lint && npm run clean && npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "babel-node test/index.js"
   },
   "keywords": [
     "redux",
@@ -36,7 +36,9 @@
     "eslint": "^3.13.1",
     "eslint-config-airbnb-base": "^11.0.1",
     "eslint-plugin-import": "^2.2.0",
-    "rimraf": "^2.5.4"
+    "rimraf": "^2.5.4",
+    "sinon": "^5.0.10",
+    "tape": "^4.9.0"
   },
   "files": [
     "README.md",
