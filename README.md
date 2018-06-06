@@ -17,6 +17,53 @@ Redux CallAPI Middleware to make API calls in generic and declarative way. Allow
 
 ## Example
 This is the simplest form, nothing wrong here, but take a look at [create middleware](#create-middleware) and [action creator](#action-creator) sections if you need customization, its quite flexible.
+### Single typed action
+```js
+// actions file
+import { CALL_API } from `redux-callapi-middleware`;
+
+export const callApi = () => ({
+  [CALL_API]: {
+    type: ACTION_TYPE,
+    endpoint: 'http://yourdomain.com/api/posts',
+    options: {
+      method: 'GET'
+    }
+  }
+});
+// somewhere
+import { callApi } from 'actions';
+dispatch(callApi());
+
+```
+This will dispatch *request* FSA before request:
+
+```js
+{ type: ACTION_TYPE, [CALL_API_PHASE]: REQUEST }
+```
+
+If everything is fine it will dispatch *success* FSA on request response:
+
+```js
+{
+  type: ACTION_TYPE,
+  payload: payload,
+  [CALL_API_PHASE]: SUCCESS
+}
+```
+
+Otherwise it will dispatch *failure* FSA:
+
+```js
+{
+  type: ACTION_TYPE,
+  payload: error,
+  [CALL_API_PHASE]: FAILURE
+  error: true
+}
+```
+
+### Different action type
 
 ```js
 // actions file
@@ -165,6 +212,17 @@ So its fine to have following structure in `[CALL_API].types`:
   { type: 'SUCCESS' },
   'FAILURE'
 ]
+```
+
+#### `[CALL_API].type`
+
+Action type to dispatch as middleware output. It will be the same type for REQUEST, SUCCESS and FAILURE actions, but phase of action will be attached to an action under special `[CALL_API_PHASE]` property (all the info in [`0.5.0 release notes`](https://github.com/Reaverart/redux-callapi-middleware/releases/tag/0.5.0)), i.e.:
+
+```js
+{
+  type: ACTION_TYPE,
+  [CALL_API_PHASE]: REQUEST || SUCCESS || FAILURE
+}
 ```
 
 ### How it works
