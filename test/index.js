@@ -4,7 +4,6 @@ import createApiMiddleware, {
   CALL_API,
   CALL_API_PHASE,
   callApiPhases,
-  actionWith,
 } from '../src/index';
 
 function makeSleep(ms, shouldResolve, response) {
@@ -108,7 +107,6 @@ test('Dispatches request action', (t) => {
   }).then(() => {
     t.true(doDispatch.firstCall.calledWith({
       type: 'REQUEST',
-      [CALL_API_PHASE]: callApiPhases.REQUEST,
     }));
     t.true(doDispatch.calledTwice);
     t.end();
@@ -116,7 +114,7 @@ test('Dispatches request action', (t) => {
 });
 
 test('Dispatches success action', (t) => {
-  const RESPONSE = {};
+  const RESPONSE = 'RESPONSE';
   const apiMiddleware = createApiMiddleware({ callApi: makeSleep(0, true, RESPONSE) });
   const doGetState = () => {};
   const doDispatch = sinon.spy();
@@ -132,7 +130,6 @@ test('Dispatches success action', (t) => {
   }).then(() => {
     t.true(doDispatch.secondCall.calledWith({
       type: 'SUCCESS',
-      [CALL_API_PHASE]: callApiPhases.SUCCESS,
       payload: RESPONSE,
     }));
     t.true(doDispatch.calledTwice);
@@ -157,7 +154,67 @@ test('Dispatches failure action', (t) => {
   }).then(() => {
     t.true(doDispatch.secondCall.calledWith({
       type: 'FAILURE',
-      [CALL_API_PHASE]: callApiPhases.FAILURE,
+      payload: RESPONSE,
+      error: true,
+    }));
+    t.true(doDispatch.calledTwice);
+    t.end();
+  });
+});
+
+test('Dispatches single typed action with request and success action phase', (t) => {
+  const ACTION_TYPE = 'ACTION_TYPE';
+  const RESPONSE = 'RESPONSE';
+  const apiMiddleware = createApiMiddleware({ callApi: makeSleep(0, true, RESPONSE) });
+  const doGetState = () => {};
+  const doDispatch = sinon.spy();
+  const nextHandler = apiMiddleware({ getState: doGetState, dispatch: doDispatch });
+  const doNext = () => {};
+  const actionHandler = nextHandler(doNext);
+  actionHandler({
+    [CALL_API]: {
+      type: ACTION_TYPE,
+      endpoint: 'endpoint',
+      options: {},
+    },
+  }).then(() => {
+    t.true(doDispatch.firstCall.calledWith({
+      type: ACTION_TYPE,
+      [CALL_API_PHASE]: callApiPhases.REQUEST,
+    }));
+    t.true(doDispatch.secondCall.calledWith({
+      type: ACTION_TYPE,
+      [CALL_API_PHASE]: callApiPhases.SUCCESS,
+      payload: RESPONSE,
+    }));
+    t.true(doDispatch.calledTwice);
+    t.end();
+  });
+});
+
+test('Dispatches single typed action with request and failure action phase', (t) => {
+  const ACTION_TYPE = 'ACTION_TYPE';
+  const RESPONSE = new Error();
+  const apiMiddleware = createApiMiddleware({ callApi: makeSleep(0, false, RESPONSE) });
+  const doGetState = () => {};
+  const doDispatch = sinon.spy();
+  const nextHandler = apiMiddleware({ getState: doGetState, dispatch: doDispatch });
+  const doNext = () => {};
+  const actionHandler = nextHandler(doNext);
+  actionHandler({
+    [CALL_API]: {
+      type: ACTION_TYPE,
+      endpoint: 'endpoint',
+      options: {},
+    },
+  }).then(() => {
+    t.true(doDispatch.firstCall.calledWith({
+      type: ACTION_TYPE,
+      [CALL_API_PHASE]: callApiPhases.REQUEST,
+    }));
+    t.true(doDispatch.secondCall.calledWith({
+      type: ACTION_TYPE,
+      [CALL_API_PHASE]: callApiPhases.FALIURE,
       payload: RESPONSE,
       error: true,
     }));
