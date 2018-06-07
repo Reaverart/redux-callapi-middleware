@@ -52,6 +52,43 @@ const normalize = (item, apiAction, getState) => {
   return item;
 };
 
+const prepareRequests = (data) => {
+  let { batch } = data;
+  const batchMode = Array.isArray(batch);
+  if (!batchMode) {
+    const { endpoint, options } = data;
+    batch = [{ endpoint, options }];
+  }
+  return { batch, batchMode };
+};
+
+const normalizeRequests = (requestsOptions, args) => (
+  requestsOptions.map(request => ({
+    endpoint: normalize(request.endpoint, ...args),
+    options: normalize(request.options, ...args),
+  }))
+);
+
+const performRequests = (requestsData, callApi) => (
+  requestsData.map(request =>
+    callApi(request.endpoint, request.options)
+  )
+);
+
+const makeQueueRequests = (callApi, queue) => (
+  (apiAction, getState, responses) => (
+    queue.reduce(async (memo, item) => {
+      const requestData = item(apiAction, getState, responses);
+      const { batch } = prepareRequests(requestData);
+      let requests = normalizeRequests(batch, [apiAction, getState]);
+      requests = performRequests(requests, callApi);
+      const results = await Promise.all([requests]);
+      console.log('request', results);
+      return memo.concat(results);
+    }, responses)
+  )
+);
+
 export const createMiddleware = ({
   callApi,
 }) => (
@@ -59,38 +96,30 @@ export const createMiddleware = ({
     if (!action[CALL_API]) {
       return next(action);
     }
-
     const apiAction = action[CALL_API];
-    let { batch } = apiAction;
-    const { endpoint, options } = apiAction;
-    const batchMode = Array.isArray(batch);
-
-    if (!batchMode) {
-      batch = [{ endpoint, options }];
-    }
-    // prepare requests params
-    batch = batch.map(request => ({
-      endpoint: normalize(request.endpoint, apiAction, getState),
-      options: normalize(request.options, apiAction, getState),
-    }));
 
     // action types
     const types = apiAction.type
       ? Array(3).fill(apiAction.type)
       : apiAction.types;
-
     const [requestType, successType, failureType] = types;
+
+    const { queue } = apiAction;
+    const queueMode = Array.isArray(queue);
+    const { batch, batchMode } = prepareRequests(apiAction);
+    const requests = normalizeRequests(batch, [apiAction, getState]);
 
     // dispatch request type
     dispatch(actionWith(
       requestType, [apiAction, getState()]
     ));
 
-    const promises = batch.map(request =>
-      callApi(request.endpoint, request.options)
-    );
+    const promises = performRequests(requests, callApi);
 
     return Promise.all(promises)
+      .then(responses => (
+        queueMode ? makeQueueRequests(callApi, queue)(apiAction, getState, responses) : responses
+      ))
       .then(
         responses => dispatch(actionWith(
           successType, [apiAction, getState()], batchMode ? responses : responses[0]

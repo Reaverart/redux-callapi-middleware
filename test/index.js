@@ -6,14 +6,17 @@ import createApiMiddleware, {
   callApiPhases,
 } from '../src/index';
 
-function makeSleep(ms, shouldResolve, response) {
-  return () =>
-    new Promise((resolve, reject) => (
+function makeSleep(ms, shouldResolve, response, spy) {
+  return (...args) => {
+    if (spy) {
+      spy(...args);
+    }
+    return new Promise((resolve, reject) => (
       setTimeout(() => (
         shouldResolve ? resolve(response) : reject(response)
       ), ms)
-    )
-  );
+    ));
+  };
 }
 
 test('Calls fetch function with given endpoint and options', (t) => {
@@ -221,4 +224,55 @@ test('Dispatches single typed action with request and failure action phase', (t)
     t.true(doDispatch.calledTwice);
     t.end();
   });
+});
+
+test('Calls batch and queue requests', (t) => {
+  const spy = sinon.spy();
+  const apiMiddleware = createApiMiddleware({ callApi: makeSleep(300, true, ['RESPONSE'], spy) });
+  const doGetState = () => {};
+  const doDispatch = () => {};
+  const nextHandler = apiMiddleware({ getState: doGetState, dispatch: doDispatch });
+  const doNext = () => {};
+  const actionHandler = nextHandler(doNext);
+  const ENDPOINT = 'ENDPOINT';
+  const OPTIONS = {};
+  actionHandler({
+    [CALL_API]: {
+      types: ['REQUEST', 'SUCCESS', 'FAILURE'],
+      batch: [
+        {
+          endpoint: () => ENDPOINT,
+          options: () => OPTIONS,
+        },
+        {
+          endpoint: () => ENDPOINT,
+          options: () => OPTIONS,
+        },
+      ],
+      queue: [
+        () => ({
+          endpoint: 'test',
+          options: OPTIONS,
+        }),
+        () => ({
+          endpoint: 'test',
+          options: OPTIONS,
+        }),
+        () => ({
+          endpoint: 'test',
+          options: OPTIONS,
+        }),
+        () => ({
+          endpoint: 'test',
+          options: OPTIONS,
+        }),
+      ],
+    },
+  }).then(() => {
+
+    console.log(spy.callCount);
+    t.true(spy.firstCall.calledWith(ENDPOINT, OPTIONS));
+    t.true(spy.secondCall.calledWith(ENDPOINT, OPTIONS));
+    t.end();
+  })
 });
