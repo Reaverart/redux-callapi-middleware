@@ -45,7 +45,7 @@ export const actionWith = (actionType, args, payload) => {
   return nextAction;
 };
 
-const normalize = (item, apiAction, getState) => {
+const normalizeParams = (item, apiAction, getState) => {
   if (typeof item === 'function') {
     return item(apiAction, getState());
   }
@@ -64,28 +64,26 @@ const prepareRequests = (data) => {
 
 const normalizeRequests = (requestsOptions, args) => (
   requestsOptions.map(request => ({
-    endpoint: normalize(request.endpoint, ...args),
-    options: normalize(request.options, ...args),
+    endpoint: normalizeParams(request.endpoint, ...args),
+    options: normalizeParams(request.options, ...args),
   }))
 );
 
-const performRequests = (requestsData, callApi) => (
-  requestsData.map(request =>
-    callApi(request.endpoint, request.options)
-  )
+const performRequests = (requests, callApi) => (
+  requests.map(({ endpoint, options }) => callApi(endpoint, options))
 );
 
-const makeQueueRequests = (callApi, queue) => (
+const makeRequestsQueue = (callApi, queue) => (
   (apiAction, getState, responses) => (
-    queue.reduce(async (memo, item) => {
-      const requestData = item(apiAction, getState, responses);
-      const { batch } = prepareRequests(requestData);
-      let requests = normalizeRequests(batch, [apiAction, getState]);
-      requests = performRequests(requests, callApi);
-      const results = await Promise.all([requests]);
-      console.log('request', results);
-      return memo.concat(results);
-    }, responses)
+    queue.reduce((memo, item, i) => (
+      memo.then((res) => {
+        const requestData = item(apiAction, getState, responses);
+        const { batch } = prepareRequests(requestData);
+        let requests = normalizeRequests(batch, [apiAction, getState]);
+        requests = performRequests(requests, callApi);
+        return Promise.all(requests).then(queueRes => res.concat(queueRes));
+      })
+    ), Promise.resolve(responses))
   )
 );
 
@@ -118,11 +116,13 @@ export const createMiddleware = ({
 
     return Promise.all(promises)
       .then(responses => (
-        queueMode ? makeQueueRequests(callApi, queue)(apiAction, getState, responses) : responses
+        queueMode
+          ? makeRequestsQueue(callApi, queue)(apiAction, getState, responses)
+          : responses
       ))
       .then(
         responses => dispatch(actionWith(
-          successType, [apiAction, getState()], batchMode ? responses : responses[0]
+          successType, [apiAction, getState()], (batchMode || queueMode) ? responses : responses[0]
         )),
         error => dispatch(actionWith(
           failureType, [apiAction, getState()], error
