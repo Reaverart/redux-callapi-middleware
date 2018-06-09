@@ -76,7 +76,7 @@ const performRequests = (requests, callApi) => (
 );
 
 const dispatcher = (dispatch, action) => {
-  if (action.type !== CALL_API_SKIP_ACTION) {
+  if (action.type === CALL_API_SKIP_ACTION) {
     return;
   }
   dispatch(action);
