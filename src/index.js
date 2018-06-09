@@ -1,5 +1,6 @@
 export const CALL_API = Symbol('Call API');
 export const CALL_API_PHASE = Symbol('Call API phase');
+export const CALL_API_SKIP_REQUEST = Symbol('Call API skip request');
 
 const REQUEST = 'REQUEST';
 const SUCCESS = 'SUCCESS';
@@ -77,8 +78,14 @@ const makeRequestsQueue = (callApi, queue) => (
   (apiAction, getState, responses) => (
     queue.reduce((memo, item, i) => (
       memo.then((res) => {
-        const requestData = item(apiAction, getState, responses);
-        const { batch } = prepareRequests(requestData);
+        const requestsData = item(apiAction, getState, res);
+        if (requestsData[CALL_API_SKIP_REQUEST]) {
+          return res.concat(typeof requestsData[CALL_API_SKIP_REQUEST] === 'boolean'
+            ? [CALL_API_SKIP_REQUEST]
+            : requestsData[CALL_API_SKIP_REQUEST]
+          );
+        }
+        const { batch } = prepareRequests(requestsData);
         let requests = normalizeRequests(batch, [apiAction, getState]);
         requests = performRequests(requests, callApi);
         return Promise.all(requests).then(queueRes => res.concat(queueRes));
