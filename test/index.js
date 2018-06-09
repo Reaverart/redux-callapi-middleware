@@ -3,6 +3,7 @@ import sinon from 'sinon';
 import createApiMiddleware, {
   CALL_API,
   CALL_API_PHASE,
+  CALL_API_SKIP_REQUEST,
   callApiPhases,
 } from '../src/index';
 
@@ -228,14 +229,15 @@ test('Dispatches single typed action with request and failure action phase', (t)
 
 test('Calls batch and queue requests', (t) => {
   const spy = sinon.spy();
-  const apiMiddleware = createApiMiddleware({ callApi: makeSleep(300, true, ['RESPONSE'], spy) });
+  const apiMiddleware = createApiMiddleware({ callApi: makeSleep(300, true, 'RESPONSE', spy) });
   const doGetState = () => {};
-  const doDispatch = () => {};
+  const doDispatch = (act) => act;
   const nextHandler = apiMiddleware({ getState: doGetState, dispatch: doDispatch });
   const doNext = () => {};
   const actionHandler = nextHandler(doNext);
   const ENDPOINT = 'ENDPOINT';
   const OPTIONS = {};
+
   actionHandler({
     [CALL_API]: {
       types: ['REQUEST', 'SUCCESS', 'FAILURE'],
@@ -251,16 +253,22 @@ test('Calls batch and queue requests', (t) => {
       ],
       queue: [
         () => ({
-          endpoint: 'test',
-          options: OPTIONS,
+          batch: [
+            {
+              endpoint: () => ENDPOINT,
+              options: () => OPTIONS,
+            },
+            {
+              endpoint: () => ENDPOINT,
+              options: () => OPTIONS,
+            },
+          ],
         }),
         () => ({
-          endpoint: 'test',
-          options: OPTIONS,
+          [CALL_API_SKIP_REQUEST]: ['SKIP'],
         }),
         () => ({
-          endpoint: 'test',
-          options: OPTIONS,
+          [CALL_API_SKIP_REQUEST]: true,
         }),
         () => ({
           endpoint: 'test',
@@ -268,11 +276,10 @@ test('Calls batch and queue requests', (t) => {
         }),
       ],
     },
-  }).then(() => {
-
-    console.log(spy.callCount);
-    t.true(spy.firstCall.calledWith(ENDPOINT, OPTIONS));
-    t.true(spy.secondCall.calledWith(ENDPOINT, OPTIONS));
+  }).then((action) => {
+    t.true(spy.callCount === 5);
+    // t.true(action.payload);
+    // t.true(spy.secondCall.calledWith(ENDPOINT, OPTIONS));
     t.end();
   })
 });
