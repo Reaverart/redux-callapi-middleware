@@ -1,6 +1,7 @@
 export const CALL_API = Symbol('Call API');
 export const CALL_API_PHASE = Symbol('Call API phase');
 export const CALL_API_SKIP_REQUEST = Symbol('Call API skip request');
+export const CALL_API_SKIP_ACTION = Symbol('Call API skip action');
 
 const REQUEST = 'REQUEST';
 const SUCCESS = 'SUCCESS';
@@ -74,6 +75,13 @@ const performRequests = (requests, callApi) => (
   requests.map(({ endpoint, options }) => callApi(endpoint, options))
 );
 
+const dispatcher = (dispatch, action) => {
+  if (action.type !== CALL_API_SKIP_ACTION) {
+    return;
+  }
+  dispatch(action);
+};
+
 const makeRequestsQueue = (callApi, queue) => (
   (apiAction, getState, responses) => (
     queue.reduce((memo, item, i) => (
@@ -115,7 +123,7 @@ export const createMiddleware = ({
     const requests = normalizeRequests(batch, [apiAction, getState]);
 
     // dispatch request type
-    dispatch(actionWith(
+    dispatcher(dispatch, actionWith(
       requestType, [apiAction, getState()]
     ));
 
@@ -128,10 +136,10 @@ export const createMiddleware = ({
           : responses
       ))
       .then(
-        responses => dispatch(actionWith(
+        responses => dispatcher(dispatch, actionWith(
           successType, [apiAction, getState()], (batchMode || queueMode) ? responses : responses[0]
         )),
-        error => dispatch(actionWith(
+        error => dispatcher(dispatch, actionWith(
           failureType, [apiAction, getState()], error
         ))
       );
