@@ -39,7 +39,7 @@ export const actionWith = (actionType, args, payload) => {
     phase = REQUEST;
   } else if (payload instanceof Error) {
     phase = FAILURE;
-  } else if (payload !== undefined) {
+  } else {
     phase = SUCCESS;
   }
   nextAction[CALL_API_PHASE] = phase;
@@ -77,9 +77,9 @@ const performRequests = (requests, callApi) => (
 
 const dispatcher = (dispatch, action) => {
   if (action.type === CALL_API_SKIP_ACTION) {
-    return;
+    return false;
   }
-  dispatch(action);
+  return dispatch(action);
 };
 
 const makeRequestsQueue = (callApi, queue) => (
