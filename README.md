@@ -1,6 +1,6 @@
 redux-callapi-middleware
 ====================
-Redux CallAPI Middleware to make API calls in generic and declarative way. Allows to batch multiple API calls and intercept responses.
+Redux API Middleware to make API calls in generic and declarative way. Allows to fire single or multiple API calls at once or sequentially, without dependency on fetch implementation.
 
 ## Contents
 
@@ -167,13 +167,31 @@ Action creator should return an object with `[CALL_API]` property with `batch`, 
 
 #### `[CALL_API].batch`
 
-An API endpoints to batch call. `Array` of `Objects` contains `endpoint` and `options` fields in same format as `[CALL_API].endpoint` and `[CALL_API].options`.
+An API endpoints to parallel API call. `Array` of `Objects` contains `endpoint` and `options` fields in same format as `[CALL_API].endpoint` and `[CALL_API].options`.
 ```js
 batch: [
   { endpoint1, options1 },
   { endpoint2, options2 },
 ],
 ```
+
+#### `[CALL_API].queue`
+
+An API endpoints to sequnced API calls. `Array` of `Functions` with all the previous `responses`, should return `Object` with `batch` or `endpoint` and `options` fields. `contains `endpoint` and `options` fields in same format as `[CALL_API].endpoint` and `[CALL_API].options`.
+```js
+endpoint1,
+options1
+queue: [
+  (action, getState, responses) => ({ endpoint2, options2 }),
+  (action, getState, responses) => ({
+    batch: [
+      { endpoint3, options3 },
+      { endpoint4, options4 },
+    ],
+  }),
+],
+```
+The first queued item will be called with responses from `endpoint1` and fire one request, second will be called with both responses from `endpoint1` and `endpoint2` and fire two requests in parallel. And in result if everything fine SUCCESS action will be fired with all the 4 responses from all the 4 requests.
 
 #### `[CALL_API].endpoint`
 
