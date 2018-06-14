@@ -86,7 +86,7 @@ const makeRequestsQueue = (callApi, queue) => (
   (apiAction, getState, responses) => (
     queue.reduce((memo, item, i) => (
       memo.then((res) => {
-        const requestsData = item(apiAction, getState, res);
+        const requestsData = item(apiAction, getState(), res);
         if (requestsData[CALL_API_SKIP_REQUEST]) {
           return res.concat(typeof requestsData[CALL_API_SKIP_REQUEST] === 'boolean'
             ? [CALL_API_SKIP_REQUEST]
