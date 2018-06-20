@@ -13,17 +13,21 @@ export const callApiPhases = {
   FAILURE,
 };
 
+const actionTypeToFSA = (actionType) => {
+  if (typeof actionType === 'string' || typeof actionType === 'symbol') {
+    return { type: actionType };
+  }
+  return actionType;
+};
+
 export const actionWith = (actionType, args, payload) => {
   let nextAction;
   if (typeof actionType === 'function') {
     nextAction = actionType(...args, payload);
+    // it might return CALL_API_SKIP_ACTION so need to wrap it into FSA
+    nextAction = actionTypeToFSA(nextAction);
   } else {
-    // convert strings or symbols to FSA object
-    if (typeof actionType === 'string' || typeof actionType === 'symbol') {
-      nextAction = { type: actionType };
-    } else {
-      nextAction = actionType;
-    }
+    nextAction = actionTypeToFSA(actionType);
 
     if (payload) {
       nextAction.payload = payload;
