@@ -260,16 +260,15 @@ test('Calls batch and queue requests', (t) => {
               options: () => OPTIONS,
             },
             {
-              endpoint: () => ENDPOINT,
-              options: () => OPTIONS,
+              [CALL_API_SKIP_REQUEST]: () => [{ skipData: 'SKIP' }],
             },
           ],
         }),
         () => ({
-          [CALL_API_SKIP_REQUEST]: ['SKIP'],
+          [CALL_API_SKIP_REQUEST]: () => [{ skipData: 'SKIP' }],
         }),
         () => ({
-          [CALL_API_SKIP_REQUEST]: true,
+          [CALL_API_SKIP_REQUEST]: [CALL_API_SKIP_REQUEST],
         }),
         () => ({
           endpoint: 'test',
@@ -278,8 +277,8 @@ test('Calls batch and queue requests', (t) => {
       ],
     },
   }).then((action) => {
-    t.true(spy.callCount === 5);
-    t.deepEqual(action.payload, ['RESPONSE', 'RESPONSE', 'RESPONSE', 'RESPONSE', 'SKIP', CALL_API_SKIP_REQUEST, 'RESPONSE']);
+    t.true(spy.callCount === 4);
+    t.deepEqual(action.payload, ['RESPONSE', 'RESPONSE', 'RESPONSE', [{ skipData: 'SKIP' }], [{ skipData: 'SKIP' }], [CALL_API_SKIP_REQUEST], 'RESPONSE']);
     t.end();
   });
 });

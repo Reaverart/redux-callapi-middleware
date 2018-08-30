@@ -51,6 +51,17 @@ export const actionWith = (actionType, args, payload) => {
   return nextAction;
 };
 
+const normalizeSkip = (skip, apiAction, getState) => {
+  switch (typeof skip) {
+    case 'boolean':
+      return CALL_API_SKIP_REQUEST;
+    case 'function':
+      return skip(apiAction, getState);
+    default:
+      return skip;
+  }
+};
+
 const normalizeParams = (item, apiAction, getState) => {
   if (typeof item === 'function') {
     return item(apiAction, getState());
@@ -62,21 +73,32 @@ const prepareRequests = (data) => {
   let { batch } = data;
   const batchMode = Array.isArray(batch);
   if (!batchMode) {
-    const { endpoint, options } = data;
-    batch = [{ endpoint, options }];
+    const { endpoint, options, [CALL_API_SKIP_REQUEST]: skipRequest } = data;
+    batch = [{ endpoint, options, [CALL_API_SKIP_REQUEST]: skipRequest }];
   }
   return { batch, batchMode };
 };
 
 const normalizeRequests = (requestsOptions, args) => (
-  requestsOptions.map(request => ({
-    endpoint: normalizeParams(request.endpoint, ...args),
-    options: normalizeParams(request.options, ...args),
-  }))
+  requestsOptions.map((request) => {
+    if (request[CALL_API_SKIP_REQUEST]) {
+      return {
+        [CALL_API_SKIP_REQUEST]: normalizeSkip(request[CALL_API_SKIP_REQUEST], ...args),
+      };
+    }
+    return {
+      endpoint: normalizeParams(request.endpoint, ...args),
+      options: normalizeParams(request.options, ...args),
+    };
+  })
 );
 
 const performRequests = (requests, callApi) => (
-  requests.map(({ endpoint, options }) => callApi(endpoint, options))
+  requests.map(({ endpoint, options, [CALL_API_SKIP_REQUEST]: resolveWith }) => (
+    resolveWith === undefined
+      ? callApi(endpoint, options)
+      : Promise.resolve(resolveWith)
+  ))
 );
 
 const dispatcher = (dispatch, action) => {
@@ -91,15 +113,10 @@ const makeRequestsQueue = (callApi, queue) => (
     queue.reduce((memo, item, i) => (
       memo.then((res) => {
         const requestsData = item(apiAction, getState(), res);
-        if (requestsData[CALL_API_SKIP_REQUEST]) {
-          return res.concat(typeof requestsData[CALL_API_SKIP_REQUEST] === 'boolean'
-            ? [CALL_API_SKIP_REQUEST]
-            : requestsData[CALL_API_SKIP_REQUEST]
-          );
-        }
         const { batch } = prepareRequests(requestsData);
         let requests = normalizeRequests(batch, [apiAction, getState]);
         requests = performRequests(requests, callApi);
+
         return Promise.all(requests).then(queueRes => res.concat(queueRes));
       })
     ), Promise.resolve(responses))
