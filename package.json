@@ -1,6 +1,6 @@
 {
   "name": "redux-callapi-middleware",
-  "version": "0.6.0-beta4",
+  "version": "0.6.0-beta5",
   "description": "Redux middleware to batch and queue requests",
   "main": "lib/index.js",
   "scripts": {
