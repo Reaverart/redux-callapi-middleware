@@ -117,7 +117,7 @@ const makeRequestsQueue = (callApi, queue) => (
         let requests = normalizeRequests(batch, [apiAction, getState]);
         requests = performRequests(requests, callApi);
 
-        return Promise.all(requests).then(queueRes => res.concat(queueRes));
+        return Promise.all(requests).then((queueRes) => res.concat(queueRes));
       })
     ), Promise.resolve(responses))
   )
@@ -126,7 +126,7 @@ const makeRequestsQueue = (callApi, queue) => (
 export const createMiddleware = ({
   callApi,
 }) => (
-  ({ dispatch, getState }) => next => (action) => {
+  ({ dispatch, getState }) => (next) => (action) => {
     if (!action[CALL_API]) {
       return next(action);
     }
@@ -151,16 +151,16 @@ export const createMiddleware = ({
     const promises = performRequests(requests, callApi);
 
     return Promise.all(promises)
-      .then(responses => (
+      .then((responses) => (
         queueMode
           ? makeRequestsQueue(callApi, queue)(apiAction, getState, responses)
           : responses
       ))
       .then(
-        responses => dispatcher(dispatch, actionWith(
+        (responses) => dispatcher(dispatch, actionWith(
           successType, [apiAction, getState()], (batchMode || queueMode) ? responses : responses[0]
         )),
-        error => dispatcher(dispatch, actionWith(
+        (error) => dispatcher(dispatch, actionWith(
           failureType, [apiAction, getState()], error
         ))
       );
